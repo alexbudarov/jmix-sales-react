@@ -121,7 +121,17 @@ const UserList = observer((props: EntityListProps<User>) => {
       >
         <FormattedMessage id="common.remove" />
       </Button>
-    </EntityPermAccessControl>
+    </EntityPermAccessControl>,
+    <Button
+        htmlType="button"
+        style={{ margin: "0 12px 12px 0" }}
+        disabled={entityListState.selectedEntityId == null}
+        onClick={handleDeactivateBtnClick}
+        key="deactivate"
+        type="default"
+    >
+      <FormattedMessage id="users.deactivate"/>
+    </Button>
   ];
 
   if (entityList != null) {
