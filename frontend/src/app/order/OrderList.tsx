@@ -32,6 +32,11 @@ const ORDER__LIST = gql`
     ) {
       id
       _instanceName
+      customer {
+        id
+        _instanceName
+        telephoneNumber
+      }
       total
     }
   }
@@ -131,7 +136,7 @@ const OrderList = observer((props: EntityListProps<Order>) => {
       error={error}
       enableFiltersOnColumns={entityList != null ? [] : undefined}
       enableSortingOnColumns={entityList != null ? [] : undefined}
-      columnDefinitions={["total"]}
+      columnDefinitions={["total", "customer", "customer.telephoneNumber"]}
       onRowSelectionChange={handleSelectionChange}
       onFilterChange={handleFilterChange}
       onSortOrderChange={handleSortOrderChange}

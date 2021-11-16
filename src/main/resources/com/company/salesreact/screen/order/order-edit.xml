@@ -40,7 +40,7 @@
                         <action id="entityClear" type="entity_clear"/>
                     </actions>
                 </entityPicker>
-                <textField id="totalField" property="total"/>
+                <textField id="totalField" property="total" editable="false"/>
             </column>
         </form>
         <groupBox id="linesBox" caption="msg://com.company.salesreact.entity/Order.lines">
