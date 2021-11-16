@@ -1,5 +1,5 @@
-import React, { useContext } from "react";
-import { Form, Alert, Button, Card } from "antd";
+import React, {useContext, useState} from "react";
+import {Form, Alert, Button, Card, Modal, Row, Col, Input, notification} from "antd";
 import { useForm } from "antd/es/form/Form";
 import { observer } from "mobx-react";
 import { toJS } from "mobx";
@@ -16,9 +16,10 @@ import {
   EntityEditorProps,
   registerEntityEditor
 } from "@haulmont/jmix-react-ui";
-import { gql } from "@apollo/client";
+import {FetchResult, gql, useMutation} from "@apollo/client";
 import "../../app/App.css";
 import { User } from "../../jmix/entities/User";
+import {ApolloError} from "@apollo/client/errors";
 
 const ENTITY_NAME = "User";
 const ROUTING_PATH = "/userEditor";
@@ -53,9 +54,12 @@ const UserEditor = observer((props: EntityEditorProps<User>) => {
   } = props;
 
   const [form] = useForm();
+  const [isChangePassDialogVisible, setChangePassDialogVisible] = useState(false);
+  const [passwordValue, setPasswordValue] = useState("");
 
   const {
     executeLoadQuery,
+    item,
     loadQueryResult: { loading: queryLoading, error: queryError },
     upsertMutationResult: { loading: upsertLoading },
     serverValidationErrors,
@@ -74,6 +78,16 @@ const UserEditor = observer((props: EntityEditorProps<User>) => {
     useEntityEditorFormValidation: createUseAntdFormValidation(form)
   });
 
+  const [executeChangePassword] = useMutation(gql`
+    mutation changePassword($user: inp_User, $newPassword: String!) {
+      changePassword(user: $user, newPassword: $newPassword) {
+        id
+        firstName
+        lastName
+      }
+    }
+  `);
+
   if (queryLoading) {
     return <Spinner />;
   }
@@ -81,6 +95,51 @@ const UserEditor = observer((props: EntityEditorProps<User>) => {
   if (queryError != null) {
     console.error(queryError);
     return <RetryDialog onRetry={executeLoadQuery} />;
+  }
+
+  function onChangePasswordClick(event: React.MouseEvent) {
+    console.log("Item: " + (item ? Object.keys(item as any) : "null"))
+    setChangePassDialogVisible(true)
+  }
+
+  function handleChangePasswordOk() {
+    if (passwordValue == null || passwordValue.length == 0) {
+      notification.warn({
+        message: 'Validation',
+        description: "Specify new password"
+      });
+      return;
+    }
+
+    executeChangePassword({
+      variables: {
+        user: item,
+        newPassword: passwordValue
+      }
+    })
+      .then(onChangePasswordResponse)
+      .catch(onChangePasswordError);
+  }
+
+  function onChangePasswordResponse(response: FetchResult<any>) {
+    // handle response
+    notification.success({
+      message: 'Success',
+      description: 'Password for the user "' + item.firstName + ' ' + item.lastName + '" has been changed'
+    });
+    setChangePassDialogVisible(false)
+  }
+
+  function onChangePasswordError(error: ApolloError) {
+    // on error
+    notification.error({
+      message: 'Error',
+      description: error.message
+    });
+  }
+
+  function handleChangePasswordCancel() {
+    setChangePassDialogVisible(false)
   }
 
   return (
@@ -156,8 +215,30 @@ const UserEditor = observer((props: EntityEditorProps<User>) => {
           >
             <FormattedMessage id={submitBtnCaption} />
           </Button>
+          <Button
+            key="changePasswordBtn"
+            type={"dashed"}
+            htmlType="button"
+            disabled={item == null || item.id == null}
+            style={{ marginLeft: "8px" }} onClick={onChangePasswordClick}>
+            <FormattedMessage id={"users.changePassword"}/>
+          </Button>
         </Form.Item>
       </Form>
+      <Modal title={"Change password for user \"" + item?.username + "\""} visible={isChangePassDialogVisible}
+             onOk={handleChangePasswordOk}
+             onCancel={handleChangePasswordCancel}>
+        <Row gutter={16}>
+          <Col flex="none">New password:</Col>
+          <Col flex="auto">
+            <Input.Password
+              key="newPassword"
+              value={passwordValue}
+              onChange={(event) => setPasswordValue(event.target.value)}
+              visibilityToggle={false}/>
+          </Col>
+        </Row>
+      </Modal>
     </Card>
   );
 });
