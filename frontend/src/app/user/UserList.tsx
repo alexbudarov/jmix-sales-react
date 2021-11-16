@@ -1,8 +1,8 @@
 import React from "react";
 import { observer } from "mobx-react";
 import { PlusOutlined, LeftOutlined } from "@ant-design/icons";
-import { Button, Tooltip } from "antd";
-import { EntityPermAccessControl } from "@haulmont/jmix-react-core";
+import { Button, Tooltip, notification } from "antd";
+import {EntityPermAccessControl, useMainStore} from "@haulmont/jmix-react-core";
 import {
   DataTable,
   RetryDialog,
@@ -12,7 +12,8 @@ import {
 } from "@haulmont/jmix-react-ui";
 import { User } from "../../jmix/entities/User";
 import { FormattedMessage } from "react-intl";
-import { gql } from "@apollo/client";
+import {FetchResult, gql, useMutation} from "@apollo/client";
+import {ApolloError} from "@apollo/client/errors";
 
 const ENTITY_NAME = "User";
 const ROUTING_PATH = "/userList";
@@ -68,9 +69,65 @@ const UserList = observer((props: EntityListProps<User>) => {
     onEntityListChange
   });
 
+  const mainStore = useMainStore();
+
+  const [executeDeactivateUserMutation] = useMutation(gql`
+    mutation deactivateUser($user: inp_User) {
+      deactivateUser(user: $user) {
+        id
+        firstName
+        lastName
+      }
+    }
+  `);
+
   if (error != null) {
     console.error(error);
     return <RetryDialog onRetry={executeListQuery} />;
+  }
+
+  function handleDeactivateBtnClick(event: React.MouseEvent) {
+    let selectedEntityId = entityListState.selectedEntityId;
+
+    const selectedUser = items?.find(i => i.id === selectedEntityId);
+    if (!selectedUser) {
+      console.log("selected user is null")
+      return;
+    }
+
+    executeDeactivateUserMutation({
+      variables: {
+        user: selectedUser
+      }
+    })
+      .then(onDeactivateUserResponse)
+      .catch(onDeactivateUserError);
+  }
+
+  function onDeactivateUserResponse(response: FetchResult<any>) {
+    // handle response
+    let user: User = response.data.deactivateUser
+    notification.success({
+      message: 'Success',
+      description: 'User "' + user.firstName + ' ' + user.lastName + '" has been deactivated'
+    });
+    executeListQuery()
+  }
+
+  function onDeactivateUserError(error: ApolloError) {
+    // on error
+    notification.error({
+      message: 'Error',
+      description: error.message
+    });
+  }
+
+  function isDeactivateButtonDisabled() {
+    let selectedEntityId = entityListState.selectedEntityId;
+    const user = items?.find(i => i.id === selectedEntityId);
+
+    let currentUserName = mainStore.userName
+    return user == null || !user.active|| user.username === currentUserName
   }
 
   const buttons = [
@@ -125,7 +182,7 @@ const UserList = observer((props: EntityListProps<User>) => {
     <Button
         htmlType="button"
         style={{ margin: "0 12px 12px 0" }}
-        disabled={entityListState.selectedEntityId == null}
+        disabled={isDeactivateButtonDisabled()}
         onClick={handleDeactivateBtnClick}
         key="deactivate"
         type="default"
